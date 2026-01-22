@@ -16,11 +16,13 @@ export default function Page() {
   const [selectedRide, setSelectedRide] = useState<number | null>(null);
 
   const connect = async () => {
-    const web3 = await getWeb3();
+   const web3 = await getWeb3();
+   if (!web3) return; 
     const accounts = await web3.eth.getAccounts();
     setAccount(accounts[0]);
     setContract(getContract(web3));
   };
+
 
   const loadDrivers = async () => {
     const count = await contract.methods.getDriversCount().call();
