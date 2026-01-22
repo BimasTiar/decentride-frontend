@@ -1,81 +1,95 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Header from "@/components/Header";
 import DriversSection from "@/components/DriversSection";
 import RideRequestsSection from "@/components/RideRequestsSection";
 import ActionPanel from "@/components/ActionPanel";
-import { getWeb3, getContract } from "@/lib/web3";
+import { getWeb3 } from "@/lib/web3";
+import { getContract } from "@/lib/contract";
 
 export default function Page() {
   const [account, setAccount] = useState<string | null>(null);
   const [contract, setContract] = useState<any>(null);
+  const [drivers, setDrivers] = useState<any[]>([]);
   const [rides, setRides] = useState<any[]>([]);
   const [selectedRide, setSelectedRide] = useState<number | null>(null);
-  const [loading, setLoading] = useState(false);
 
-  const safeTx = async (fn: () => Promise<void>) => {
-    try {
-      setLoading(true);
-      await fn();
-    } catch (e: any) {
-      if (e?.code !== 4001) console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const connectWallet = async () => {
-    const { ethereum } = window as any;
-    const accounts = await ethereum.request({ method: "eth_requestAccounts" });
-    const web3 = getWeb3();
-    const c = getContract(web3);
+  const connect = async () => {
+    const web3 = await getWeb3();
+    const accounts = await web3.eth.getAccounts();
     setAccount(accounts[0]);
-    setContract(c);
-    loadRides(c);
+    setContract(getContract(web3));
   };
 
-  const disconnectWallet = () => {
-    setAccount(null);
-    setContract(null);
-    setRides([]);
-  };
-
-  const loadRides = async (c: any) => {
-    const count = await c.methods.getRidesCount().call();
-    const list = [];
+  const loadDrivers = async () => {
+    const count = await contract.methods.getDriversCount().call();
+    const arr = [];
     for (let i = 0; i < count; i++) {
-      list.push(await c.methods.getRide(i).call());
+      arr.push(await contract.methods.getDriverByIndex(i).call());
     }
-    setRides(list);
+    setDrivers(arr);
   };
+
+  const loadRides = async () => {
+    const count = await contract.methods.getRidesCount().call();
+    const arr = [];
+    for (let i = 0; i < count; i++) {
+      arr.push(await contract.methods.getRide(i).call());
+    }
+    setRides(arr);
+  };
+
+  useEffect(() => {
+    if (contract) {
+      loadDrivers();
+      loadRides();
+    }
+  }, [contract]);
 
   return (
-    <>
-      <Header account={account} onConnect={connectWallet} onLogout={disconnectWallet} />
+    <div className="container">
+      <Header
+        account={account}
+        onConnect={connect}
+        onDisconnect={() => setAccount(null)}
+      /> 
 
       {account && (
-        <main className="layout">
-          <div>
-            <DriversSection drivers={[]} />
-            <div style={{ height: 16 }} />
-            <RideRequestsSection
-              rides={rides}
-              selectedRide={selectedRide}
-              onSelectRide={setSelectedRide}
-            />
-          </div>
-
-          <ActionPanel
-            disabled={loading || selectedRide === null}
-            onRequest={() => safeTx(() => contract.methods.requestRide("A","B").send({ from: account }))}
-            onAccept={() => safeTx(() => contract.methods.acceptRide(selectedRide).send({ from: account }))}
-            onFund={() => safeTx(() => contract.methods.fundRide(selectedRide).send({ from: account, value: "1000000000000000" }))}
-            onComplete={() => safeTx(() => contract.methods.completeRide(selectedRide).send({ from: account }))}
-            onConfirm={() => safeTx(() => contract.methods.confirmArrival(selectedRide).send({ from: account }))}
+        <div className="grid">
+          <DriversSection drivers={drivers} />
+          <RideRequestsSection
+            rides={rides}
+            onSelect={setSelectedRide}
           />
-        </main>
+          <ActionPanel
+            onRequest={() =>
+              contract.methods.requestRide("A", "B").send({ from: account })
+            }
+            onAccept={() =>
+              selectedRide !== null &&
+              contract.methods.acceptRide(selectedRide).send({ from: account })
+            }
+            onFund={() =>
+              selectedRide !== null &&
+              contract.methods.fundRide(selectedRide).send({
+                from: account,
+                value: "1000000000000000",
+              })
+            }
+            onComplete={() =>
+              selectedRide !== null &&
+              contract.methods.completeRide(selectedRide).send({ from: account })
+            }
+            onConfirm={() =>
+              selectedRide !== null &&
+              contract.methods.confirmArrival(selectedRide).send({
+                from: account,
+              })
+            }
+          />
+        </div>
       )}
-    </>
+    </div>
   );
 }

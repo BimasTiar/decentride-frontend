@@ -1,28 +1,24 @@
-type Props = {
+export default function Header({
+  account,
+  onConnect,
+  onDisconnect,
+}: {
   account: string | null;
   onConnect: () => void;
-  onLogout: () => void;
-};
-
-export default function Header({ account, onConnect, onLogout }: Props) {
+  onDisconnect: () => void;
+}) {
   return (
-    <div style={{
-      display: "flex",
-      justifyContent: "space-between",
-      padding: "16px 24px",
-      borderBottom: "1px solid rgba(255,255,255,0.1)"
-    }}>
-      <h2>RideChain</h2>
-
+    <div className="card">
+      <h1>RideChain</h1>
       {account ? (
-        <div style={{ display: "flex", gap: 12 }}>
-          <span>{account.slice(0,6)}…{account.slice(-4)}</span>
-          <button className="secondary" onClick={onLogout}>Disconnect</button>
-        </div>
+        <>
+          <p>Connected: {account}</p>
+          <button className="secondary" onClick={onDisconnect}>
+            Disconnect
+          </button>
+        </>
       ) : (
-        <button className="primary" onClick={onConnect}>
-          Connect Wallet
-        </button>
+        <button onClick={onConnect}>Connect Wallet</button>
       )}
     </div>
   );
